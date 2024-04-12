@@ -275,23 +275,17 @@ class CustomLlamaEncoderLayer(nn.Module):
         self.act = nn.ReLU()
 
     def forward(self, x,
-        input_ids: torch.LongTensor = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[torch.FloatTensor]] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,):
+        *args, **kwargs
+        ):
+
+
         input_layer = self.input_layer(x)
         input_layer = self.act(input_layer)
         
         up_proj = self.up_proj(x)
         up_proj = self.act(up_proj)
         
-        down_proj = self.down_proj(input_layer * up_proj)
+        down_proj = self.down_proj(up_proj)
         down_proj = self.act(down_proj)
         
         down_proj_2 = self.down_proj_2(down_proj)
