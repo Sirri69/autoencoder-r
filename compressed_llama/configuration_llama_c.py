@@ -138,6 +138,7 @@ class LlamaConfig(PretrainedConfig):
         rope_scaling=None,
         attention_bias=False,
         attention_dropout=0.0,
+        compress_layers=[12],
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -162,6 +163,9 @@ class LlamaConfig(PretrainedConfig):
         self._rope_scaling_validation()
         self.attention_bias = attention_bias
         self.attention_dropout = attention_dropout
+
+        # custom attributes here
+        self.compress_layers = compress_layers
 
         super().__init__(
             pad_token_id=pad_token_id,

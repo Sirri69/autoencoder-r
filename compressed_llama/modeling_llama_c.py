@@ -262,6 +262,44 @@ class LlamaMLP(nn.Module):
         return down_proj
 
 
+class CustomLlamaEncoderLayer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.input_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.up_proj = nn.Linear(config.hidden_size, config.hidden_size*2)
+        self.down_proj = nn.Linear(config.hidden_size*2, config.hidden_size)
+        self.down_proj_2 = nn.Linear(config.hidden_size, config.hidden_size//2)
+        # norm
+        self.norm = LlamaRMSNorm(config.hidden_size//2)
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        input_layer = self.input_layer(x)
+        input_layer = self.act(input_layer)
+        
+        up_proj = self.up_proj(x)
+        up_proj = self.act(up_proj)
+        
+        down_proj = self.down_proj(input_layer * up_proj)
+        down_proj = self.act(down_proj)
+        
+        down_proj_2 = self.down_proj_2(down_proj)
+        down_proj_2 = self.act(down_proj_2)
+        down_proj_2 = self.norm(down_proj_2)
+
+        return down_proj_2
+    
+
+# class CustomLlamaDecoder(nn.Module):
+#     def __init__(self, config):
+#         super().__init__()
+#         self.config = config
+#         self.input_size = config.decoder_input_size
+#         self.input_layer = nn.Linear(config.hidden_size, config.hidden_size)
+
+
+
 class CustomLLamaMLP(nn.Module):
     def __init__(self, original_mlp):
         super(CustomLLamaMLP, self).__init__()
@@ -1051,9 +1089,17 @@ class LlamaModel(LlamaPreTrainedModel):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = nn.ModuleList(
-            [LlamaDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
-        )
+        self.layers = nn.ModuleList()
+        # self.layers = nn.ModuleList(
+        #     [LlamaDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
+        # )
+
+        for layer_idx in range(config.num_hidden_layers):
+                if layer_idx in config.compress_layers:
+                    self.layers.append(CustomLlamaEncoderLayer(config))
+                    config.hidden_size = config.hidden_size // 2
+                self.layers.append(LlamaDecoderLayer(config, layer_idx))
+
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.gradient_checkpointing = False
 
