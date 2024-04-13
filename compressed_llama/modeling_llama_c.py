@@ -295,12 +295,34 @@ class CustomLlamaEncoderLayer(nn.Module):
         return down_proj_2
     
 
-# class CustomLlamaDecoder(nn.Module):
-#     def __init__(self, config):
-#         super().__init__()
-#         self.config = config
-#         self.input_size = config.decoder_input_size
-#         self.input_layer = nn.Linear(config.hidden_size, config.hidden_size)
+class CustomLlamaDecoder(nn.Module):
+    def __init__(self, config, input_size=256):
+        super().__init__()
+        self.config = config
+        self.input_size = input_size
+        self.input_layer = nn.Linear(self.input_size, self.input_size)
+        self.gate_proj = nn.Linear(self.input_size, self.input_size)
+        
+        self.up_proj = nn.Linear(self.input_size, self.input_size*2)
+        self.up_proj_2 = nn.Linear(self.input_size*2, self.input_size*2)
+
+        self.act_fn = nn.ReLU()
+
+    def forward(self, x):
+        input_layer = self.input_layer(x)
+        input_layer = self.act_fn(input_layer)
+        
+        gate_proj = self.gate_proj(x)
+        gate_proj = self.act_fn(gate_proj)
+        
+        up_proj = self.up_proj(x)
+        up_proj = self.act_fn(up_proj)
+        
+        up_proj_2 = self.up_proj_2(up_proj)
+        up_proj_2 = self.act_fn(up_proj_2)
+        
+        return up_proj_2
+
 
 
 
