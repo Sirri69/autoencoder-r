@@ -1102,6 +1102,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 if layer_idx in config.compress_layers:
                     self.layers.append(CustomLlamaEncoderLayer(config))
                     config.hidden_size = config.hidden_size // 2
+
                 self.layers.append(LlamaDecoderLayer(config, layer_idx))
 
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
@@ -1202,14 +1203,17 @@ class LlamaModel(LlamaPreTrainedModel):
                     use_cache=use_cache,
                     cache_position=cache_position,
                 )
+            
+            if decoder_layer.__class__.__name__ == "CustomLlamaEncoderLayer":
+                hidden_states = layer_outputs
+            else:
+                hidden_states = layer_outputs[0]
 
-            hidden_states = layer_outputs[0]
+                if use_cache:
+                    next_decoder_cache = layer_outputs[2 if output_attentions else 1]
 
-            if use_cache:
-                next_decoder_cache = layer_outputs[2 if output_attentions else 1]
-
-            if output_attentions:
-                all_self_attns += (layer_outputs[1],)
+                if output_attentions:
+                    all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
 

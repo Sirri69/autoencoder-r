@@ -139,6 +139,7 @@ class LlamaConfig(PretrainedConfig):
         attention_bias=False,
         attention_dropout=0.0,
         compress_layers=[12],
+        layer_type="decoder",
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -166,6 +167,7 @@ class LlamaConfig(PretrainedConfig):
 
         # custom attributes here
         self.compress_layers = compress_layers
+        self.layer_type = layer_type
 
         super().__init__(
             pad_token_id=pad_token_id,
