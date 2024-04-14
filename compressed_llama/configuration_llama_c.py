@@ -138,7 +138,8 @@ class LlamaConfig(PretrainedConfig):
         rope_scaling=None,
         attention_bias=False,
         attention_dropout=0.0,
-        compress_layers=[12],
+        compress_layers=[14],
+        decompress_layers=[18],
         layer_type="decoder",
         **kwargs,
     ):
@@ -167,6 +168,7 @@ class LlamaConfig(PretrainedConfig):
 
         # custom attributes here
         self.compress_layers = compress_layers
+        self.decompress_layers = decompress_layers
         self.layer_type = layer_type
 
         super().__init__(

@@ -295,7 +295,7 @@ class CustomLlamaEncoderLayer(nn.Module):
         return down_proj_2
     
 
-class CustomLlamaDecoder(nn.Module):
+class CustomLlamaDecoderLayer(nn.Module):
     def __init__(self, config, input_size=256):
         super().__init__()
         self.config = config
@@ -871,7 +871,7 @@ class LlamaDecoderLayer(nn.Module):
         return outputs
 
 
-class CustomLlamaDecoderLayer(nn.Module):
+class _CustomLlamaDecoderLayer(nn.Module):
     """
     This decoder layer is a custom implementation of the LlamaDecoderLayer. 
     The main difference is that it uses the CustomLLamaMLP instead of the LlamaMLP.
@@ -1124,6 +1124,9 @@ class LlamaModel(LlamaPreTrainedModel):
                 if layer_idx in config.compress_layers:
                     self.layers.append(CustomLlamaEncoderLayer(config))
                     config.hidden_size = config.hidden_size // 2
+                elif layer_idx in config.decompress_layers:
+                    self.layers.append(CustomLlamaDecoderLayer(config))
+                    config.hidden_size = config.hidden_size * 2
 
                 self.layers.append(LlamaDecoderLayer(config, layer_idx))
 
@@ -1199,12 +1202,13 @@ class LlamaModel(LlamaPreTrainedModel):
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
+        encoder_states = []
 
-        for decoder_layer in self.layers:
+        for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
-            if self.gradient_checkpointing and self.training:
+            if self.gradient_checkpointing and self.training:                  
                 layer_outputs = self._gradient_checkpointing_func(
                     decoder_layer.__call__,
                     hidden_states,
@@ -1228,8 +1232,13 @@ class LlamaModel(LlamaPreTrainedModel):
             
             if decoder_layer.__class__.__name__ == "CustomLlamaEncoderLayer":
                 hidden_states = layer_outputs
+                encoder_states.append(hidden_states)
             else:
                 hidden_states = layer_outputs[0]
+
+            if idx < len(self.layers) - 1:
+                if self.layers[idx + 1].__class__.__name__ == "CustomLlamaDecoderLayer":
+                    hidden_states = encoder_states.pop() + hidden_states
 
                 if use_cache:
                     next_decoder_cache = layer_outputs[2 if output_attentions else 1]
