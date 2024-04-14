@@ -308,7 +308,8 @@ class CustomLlamaDecoderLayer(nn.Module):
 
         self.act_fn = nn.ReLU()
 
-    def forward(self, x):
+    def forward(self, x,
+                *args, **kwargs):
         input_layer = self.input_layer(x)
         input_layer = self.act_fn(input_layer)
         
