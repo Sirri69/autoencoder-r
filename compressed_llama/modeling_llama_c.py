@@ -307,6 +307,7 @@ class CustomLlamaDecoderLayer(nn.Module):
         self.up_proj_2 = nn.Linear(self.input_size*2, self.input_size*2)
 
         self.act_fn = nn.ReLU()
+        self.norm = LlamaRMSNorm(self.input_size*2)
 
     def forward(self, x,
                 *args, **kwargs):
@@ -321,6 +322,7 @@ class CustomLlamaDecoderLayer(nn.Module):
         
         up_proj_2 = self.up_proj_2(up_proj)
         up_proj_2 = self.act_fn(up_proj_2)
+        up_proj_2 = self.norm(up_proj_2)
         
         return up_proj_2
 
@@ -1126,7 +1128,7 @@ class LlamaModel(LlamaPreTrainedModel):
                     self.layers.append(CustomLlamaEncoderLayer(config))
                     config.hidden_size = config.hidden_size // 2
                 elif layer_idx in config.decompress_layers:
-                    self.layers.append(CustomLlamaDecoderLayer(config))
+                    self.layers.append(CustomLlamaDecoderLayer(config, input_size=config.hidden_size))
                     config.hidden_size = config.hidden_size * 2
 
                 self.layers.append(LlamaDecoderLayer(config, layer_idx))
@@ -1221,6 +1223,7 @@ class LlamaModel(LlamaPreTrainedModel):
                     cache_position,
                 )
             else:
+                print(decoder_layer.__class__.__name__, idx, hidden_states.shape)
                 layer_outputs = decoder_layer(
                     hidden_states,
                     attention_mask=causal_mask,
@@ -1234,6 +1237,8 @@ class LlamaModel(LlamaPreTrainedModel):
             if decoder_layer.__class__.__name__ == "CustomLlamaEncoderLayer":
                 hidden_states = layer_outputs
                 encoder_states.append(hidden_states)
+            elif decoder_layer.__class__.__name__ == "CustomLlamaDecoderLayer":
+                hidden_states = layer_outputs
             else:
                 hidden_states = layer_outputs[0]
 
@@ -1241,11 +1246,14 @@ class LlamaModel(LlamaPreTrainedModel):
                 if self.layers[idx + 1].__class__.__name__ == "CustomLlamaDecoderLayer":
                     hidden_states = encoder_states.pop() + hidden_states
 
-                if use_cache:
+            if use_cache:
+                try:
                     next_decoder_cache = layer_outputs[2 if output_attentions else 1]
+                except IndexError:
+                    next_decoder_cache = None
 
-                if output_attentions:
-                    all_self_attns += (layer_outputs[1],)
+            if output_attentions:
+                all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
 
